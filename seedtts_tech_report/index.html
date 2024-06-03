@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<meta charset="utf-8">
+	<meta name="generator" content="Hugo 0.88.1" />
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link href="https://fonts.googleapis.com/css?family=Roboto:300,400,700" rel="stylesheet" type="text/css">
+	<link rel="stylesheet" href=""https://cdnjs.cloudflare.com/ajax/libs/highlight.js/8.4/styles/github.min.css">
+	<link rel="stylesheet" href="css/custom.css">
+	<link rel="stylesheet" href="css/normalize.css">
+
+	<title>Seed-TTS Technical Report</title>
+	<link href="css/bootstrap.min.css" rel="stylesheet">
+
+</head>
+
+
+<body data-new-gr-c-s-check-loaded="14.1091.0" data-gr-ext-installed="">
+
+<div class="container" >
+<header role="banner">
+</header>
+<main role="main">
+<article itemscope itemtype="https://schema.org/BlogPosting">
+
+<div class="container pt-5 mt-5 shadow-lg p-5 mb-5 bg-white rounded">
+	<div class="text-center">
+	<h2>Seed-TTS Technical Report</h4>
+		<!-- [<a href="https://arxiv.org/abs/2303.03926">Paper</a>] -->
+		<!-- [<a href="https://arxiv.org/abs/2306.02982">Paper</a>] -->
+
+        <p class="fst-italic mb-0">
+          Seed Team
+      <p></p>
+        </p>
+        <p><b>ByteDance</b></p>
+	</div>
+	<p><b>Abstract.</b> We introduce Seed-TTS, a family of large-scale autoregressive text-to-speech (TTS) models capable of generating speech that is virtually indistinguishable from human speech. Seed-TTS serves as a foundation model for speech generation and excels in speech in-context learning, achieving performance in speaker similarity and naturalness that matches ground truth human speech in both objective and subjective evaluations. With fine-tuning, we achieve even higher subjective scores across these metrics. Seed-TTS offers superior controllability over various speech attributes such as emotion and is capable of generating highly expressive and diverse speech for speakers in the wild. Furthermore, we propose a self-distillation method for speech factorization, as well as a reinforcement learning approach to enhance model robustness, speaker similarity and controllability. We additionally present a non-autoregressive (NAR) variant of the Seed-TTS model, named Seed-TTS<sub>DiT</sub>, which utilizes a fully diffusion-based architecture. Unlike previous NAR-based TTS systems, Seed-TTS<sub>DiT</sub> does not depend on pre-estimated phoneme durations and performs speech generation through end-to-end processing. We demonstrate that this variant achieves comparable performance to the language model-based variant in both objective and subjective evaluations and showcase its effectiveness in speech editing.
+	</p>
+
+	<p>
+	<b>Contents</b>
+      <ul>
+        <li><a href="#model-overview">System Overview</a></li>
+        <li><a href="#zero-shot-icl-samples">Zero-shot In-context Learning</a></li>
+        <li><a href="#speaker-finetune-samples">Speaker Fine-tune</a></li>
+        <li><a href="#speech-factorization-samples">Speech Factorization</a></li>
+        <li><a href="#rl-samples">Preference Biasing Through Reinforcement Learning</a></li>
+        <li><a href="#full-diffusion-samples">Fully Diffusion-based Speech Generation</a></li>
+        <li><a href="#applications-samples">Applications</a></li>
+      </ul>
+	</p>
+
+	
+</div>
+
+
+<div class="container pt-5 mt-5 shadow-lg p-5 mb-5 bg-white rounded">		
+	<h2 id="model-overview" style="text-align: center;">System Overview</h2>
+	<body>
+	<p style="text-align: center;">
+		<img src="pics/overview.jpeg" height="400" width="800">
+	</p>
+	</body>
+		<p style="text-align: center;" >
+			<b>Figure 1.</b> An overview of the Seed-TTS inference pipeline. (1) The speech tokenizer learns discrete tokens from reference speech. (2) The autoregressive language model generates the speech tokens from the text tokens and discrete tokens from the speech tokenizer. (3) The diffusion transformer model generates continuous speech representations given discrete speech tokens in a coarse-to-fine manner. (4) The acoustic vocoder yields higher-quality speech from the diffusion output
+		</p>
+</div>
+
+
+<div class="container pt-5 mt-5 shadow-lg p-5 mb-5 bg-white rounded">
+	<h2 id="zero-shot-icl-samples" style="text-align: center;">Zero-shot In-context Learning</h2>
+		<div class="table-responsive pt-3">
+			<table class="table table-hover pt-2">
+				<thead>
+				<tr>
+				<th style="vertical-align : middle;text-align: center">Language </th>
+				<th style="vertical-align : middle;text-align: center">Prompt </th>
+				<th style="vertical-align : middle;text-align: center">Same Language Generation</th>
+				<th style="vertical-align : middle;text-align: center">Corss-linugal Generation</th>
+				</tr>
+				</thead>
+				<tbody>
+					<tr>
+						<td style="vertical-align : middle;text-align:center;" rowspan="3">EN</td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/ZeroShotICL_samples/EN/prompt/4245145269330795065.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/ZeroShotICL_samples/EN/generated/-7098819224143199853.wav" autoplay/>Your browser does not support the audio element.</audio><br>I don't really care what you call me. I've been a silent spectator, watching species evolve, empires rise and fall. But always remember, I am mighty and enduring. Respect me and I'll nurture you; ignore me and you shall face the consequences.</td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/ZeroShotICL_samples/EN2ZH/accent/-7059551132412457673.wav" autoplay/>Your browser does not support the audio element.</audio><br>顿时，气氛变得沉郁起来。乍看之下，一切的困扰仿佛都围绕在我身边。我皱着眉头，感受着那份压力，但我知道我不能放弃，不能认输。于是，我深吸一口气，心底的声音告诉我：“无论如何，都要冷静下来，重新开始。”</td>
+					</tr>
+					<tr>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/ZeroShotICL_samples/EN/prompt/2486365921931244890.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/ZeroShotICL_samples/EN/generated/-4022654511881686103.wav" autoplay/>Your browser does not support the audio element.</audio><br>Dealing with family secrets is never easy. Yet, sometimes, omission is a form of protection, intending to safeguard some from the harsh truths. One day, I hope you understand the reasons behind my actions. Until then, Anna, please, bear with me.</td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/ZeroShotICL_samples/EN2ZH/accent/5923897317977078708.wav" autoplay/>Your browser does not support the audio element.</audio><br>处理家庭秘密从来都不是一件容易的事。然而，有时候，隐瞒是一种保护形式，旨在保护一些人免受残酷的真相伤害。有一天，我希望你能理解我行为背后的原因。在那之前，安娜，请容忍我。</td>
+					</tr>
+					<tr>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/ZeroShotICL_samples/EN/prompt/-9102975986427238220.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/ZeroShotICL_samples/EN/generated/-5711578405326350279.wav" autoplay/>Your browser does not support the audio element.</audio><br>The combinations of different textures and flavors create a perfect harmony. The succulence of the steak, the tartness of the cranberries, the crunch of pine nuts, and creaminess of blue cheese make it a truly delectable delight. Enjoy your culinary adventure!</td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/ZeroShotICL_samples/EN2ZH/accent/-2440558962308447419.wav" autoplay/>Your browser does not support the audio element.</audio><br>听着你的话，我心里五味杂陈。虽然我愿意一直在你身边，承担一切不幸，但我知道只有让你自己面对，才能真正让你变得更强大。所以，你要记得，无论面对何种困难，都请你坚强，我会在心里一直支持你的。</td>
+					</tr>
+
+					<tr>
+						<td style="vertical-align : middle;text-align:center;" rowspan="3">ZH</td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/ZeroShotICL_samples/ZH/prompt/2648200402409733590.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/ZeroShotICL_samples/ZH/generated/-7282572289945892805.wav" autoplay/>Your browser does not support the audio element.</audio><br>突然，身边一阵笑声。我看着他们，意气风发地挺直了胸膛，甩了甩那稍显肉感的双臂，轻笑道："我身上的肉，是为了掩饰我爆棚的魅力，否则，岂不吓坏了你们呢？"</td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/ZeroShotICL_samples/ZH2EN/accent/5590663915455029645.wav" autoplay/>Your browser does not support the audio element.</audio><br>Suddenly, there was a burst of laughter beside me. I looked at them, stood up straight with high spirit, shook the slightly fleshy arms, and smiled lightly, saying, "The flesh on my body is to hide my bursting charm. Otherwise, wouldn't it scare you?"</td>
+					</tr>
+					<tr>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/ZeroShotICL_samples/ZH/prompt/8913957783621352198.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/ZeroShotICL_samples/ZH/generated/33126387539052788.wav" autoplay/>Your browser does not support the audio element.</audio><br>他闭上眼睛，期望这一切都能过去。然而，当他再次睁开眼睛，眼前的景象让他不禁倒吸一口气。雾气中出现的禁闭岛，陌生又熟悉，充满未知的危险。他握紧拳头，心知他的生活即将发生翻天覆地的改变。</td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/ZeroShotICL_samples/ZH2EN/accent/4097919761234836261.wav" autoplay/>Your browser does not support the audio element.</audio><br>He closed his eyes, expecting that all of this could pass. However, when he opened his eyes again, the sight in front of him made him couldn't help but take a deep breath. The closed island that appeared in the fog, strange and familiar, was full of unknown dangers. He tightened his fist, knowing that his life was about to undergo earth-shaking changes. </td>
+					</tr>
+					<tr>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/ZeroShotICL_samples/ZH/prompt/2631296891109983590.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/ZeroShotICL_samples/ZH/generated/1784230488994154020.wav" autoplay/>Your browser does not support the audio element.</audio><br>顿时，气氛变得沉郁起来。乍看之下，一切的困扰仿佛都围绕在我身边。我皱着眉头，感受着那份压力，但我知道我不能放弃，不能认输。于是，我深吸一口气，心底的声音告诉我：“无论如何，都要冷静下来，重新开始。”</td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/ZeroShotICL_samples/ZH2EN/accent/6646045659975963496.wav" autoplay/>Your browser does not support the audio element.</audio><br>Suddenly, the atmosphere became gloomy. At first glance, all the troubles seemed to surround me. I frowned, feeling that pressure, but I know I can't give up, can't admit defeat. So, I took a deep breath, and the voice in my heart told me, "Anyway, must calm down and start again."</td>
+					</tr>
+				</tbody>
+			</table>
+		</div>
+</div>
+
+
+<div class="container pt-5 mt-5 shadow-lg p-5 mb-5 bg-white rounded">
+	<h2 id="speaker-finetune-samples" style="text-align: center;">Speaker Fine-tune</h2>
+		<div class="table-responsive pt-3">
+			<table class="table table-hover pt-2">
+				<thead>
+				<tr>
+				<th style="text-align: center"> </th>
+				<th style="text-align: center">Text </th>
+				<th style="text-align: center">Generated</th>
+				</tr>
+				</thead>
+				<tbody>
+					<tr>
+					<td style="vertical-align : middle;text-align:center;" rowspan="3">Speaker1</td>
+					<td style="vertical-align : middle;text-align:center;">好呀，哈哈哈哈哈，喜欢笑的人运气都不会差哦，希望你每天笑口常开~</td>
+					<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/SpeakerFinetune_samples/speaker1/4781135337205789117.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+					</tr>
+					<tr>
+					<td style="vertical-align : middle;text-align:center;">哇！恭喜你中了大乐透，八百万可真不少呢！有什么特别的计划或想法吗？</td>
+					<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/SpeakerFinetune_samples/speaker1/-6681486522402923816.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+					</tr>
+					<tr>
+					<td style="vertical-align : middle;text-align:center;">哼，你这么问是想请本小姐吃饭吗？如果对象是你的话，那也不是不可以。</td>
+					<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/SpeakerFinetune_samples/speaker1/9135794595658757744.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+					</tr>
+
+					<tr>
+					<td style="vertical-align : middle;text-align:center;" rowspan="3">Speaker2</td>
+					<td style="vertical-align : middle;text-align:center;">是呀，他还想换个地球仪哈哈哈，看来给你积累了一些快乐值了，你还想不想再听一个其他的笑话呀？</td>
+					<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/SpeakerFinetune_samples/speaker2/-1325430967143158944.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+					</tr>
+					<tr>
+					<td style="vertical-align : middle;text-align:center;">嘿嘿，你是不是也想拥有甜甜的恋爱呢？《微微一笑很倾城》是你的不二选择，男女主是校花校草类型，他们通过游戏结识，再到两人见面，全程没有一点误会，真的齁甜，想想都忍不住“姨妈笑”~</td>
+					<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/SpeakerFinetune_samples/speaker2/-438126037267614383.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+					</tr>
+					<tr>
+					<td style="vertical-align : middle;text-align:center;">小傻瓜，嗯……算是个很可爱很亲切的名字，有点“独特”哦，不过我有些好奇，你为什么会给我选这个昵称呢？</td>
+					<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/SpeakerFinetune_samples/speaker2/7449251907670299552.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+					</tr>
+				</tbody>
+			</table>
+		</div>
+	<br>
+	<h4 id="emotions-samples" style="text-align: center;">Emotion Control</h4>
+	<br>
+		<div class="table-responsive pt-3">
+			<table class="table table-hover pt-2">
+				<thead>
+				<tr>
+				<th style="text-align: center">Emotion</th>
+				<th style="text-align: center">Text</th>
+				<th style="text-align: center">Generated</th>
+				</tr>
+				</thead>
+				<tbody>
+					<tr>
+						<td style="vertical-align : middle;text-align:center;">Angry</td>
+						<td style="vertical-align : middle;text-align:center;">你为什么总是重复犯同样的错误？难道你就不能学习一下吗？</td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/Emotion_samples/-7122887757088549422.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+					</tr>
+					<tr>
+						<td style="vertical-align : middle;text-align:center;">Happy</td>
+						<td style="vertical-align : middle;text-align:center;">昨晚的电影真是太精彩了，我笑到肚子疼，还想再看一遍。</td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/Emotion_samples/-6819968704143559039.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+					</tr>
+					<tr>
+						<td style="vertical-align : middle;text-align:center;">Sad</td>
+						<td style="vertical-align : middle;text-align:center;">在这个熟悉的城市里，每个角落都充满了她的影子，让我无处遁形。</td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/Emotion_samples/-7382464751423701418.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+					</tr>
+					<tr>
+						<td style="vertical-align : middle;text-align:center;">Tender</td>
+						<td style="vertical-align : middle;text-align:center;">每一次想到你，我的心就充满了柔软的光芒，愿这份情感能够穿越时空，让你感受到我的爱和思念。</td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/Emotion_samples/-6021343736706359392.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+					</tr>
+					<tr>
+						<td style="vertical-align : middle;text-align:center;">Confused</td>
+						<td style="vertical-align : middle;text-align:center;">这幅画是否真的完成了？还是我应该再添加一些细节来完善它？</td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/Emotion_samples/3438640816049515540.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+					</tr>
+					<tr>
+						<td style="vertical-align : middle;text-align:center;">Fear</td>
+						<td style="vertical-align : middle;text-align:center;">他对黑暗的恐惧从小就存在，即使是成年后的某些夜晚，也会感到不自在。</td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/Emotion_samples/-8670284969990546413.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+					</tr>
+				</tbody>
+			</table>
+		</div>
+</div>
+
+
+<div class="container pt-5 mt-5 shadow-lg p-5 mb-5 bg-white rounded">
+	<h2 id="speech-factorization-samples" style="text-align: center;">Speech Factorization</h2>
+	<br>
+	<h4 id="speaker-finetune-samples-female" style="text-align: center;">Zero-shot Voice Conversion</h4>
+	<br>
+		<div class="table-responsive pt-3">
+			<table class="table table-hover pt-2">
+				<thead>
+				<tr>
+				<th style="text-align: center">Language</th>
+				<th style="text-align: center">Source Audio</th>
+				<th style="text-align: center">Timbre Prompt</th>
+				<th style="text-align: center">Converted Audio</th>
+				</tr>
+				</thead>
+				<tbody>
+					<tr>
+					<td style="vertical-align : middle;text-align:center;" rowspan="4">EN</td>
+					<td style="vertical-align : middle;text-align:center;" rowspan="2"><audio controls="controls" style="width: 190px;"><source src="audios/SpeechFactorization_samples/source/-8014568635405176842.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+					<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/SpeechFactorization_samples/prompt/prompt1/4813840990459345930.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+					<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/SpeechFactorization_samples/generated/gen1/5518114099457736437.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+					</tr>
+					<tr>
+					<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/SpeechFactorization_samples/prompt/prompt1/-4261051484297537007.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+					<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/SpeechFactorization_samples/generated/gen1/7702800575106132714.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+					</tr>
+
+					<tr>
+					<td style="vertical-align : middle;text-align:center;" rowspan="2"><audio controls="controls" style="width: 190px;"><source src="audios/SpeechFactorization_samples/source/2188769758301752050.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+					<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/SpeechFactorization_samples/prompt/prompt2/-5427774732334682307.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+					<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/SpeechFactorization_samples/generated/gen2/-3552571881595006474.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+					</tr>
+					<tr>
+					<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/SpeechFactorization_samples/prompt/prompt2/-8434461861028245286.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+					<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/SpeechFactorization_samples/generated/gen2/1663763965594639195.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+					</tr>
+
+					<tr>
+					<td style="vertical-align : middle;text-align:center;" rowspan="4">ZH</td>
+					<td style="vertical-align : middle;text-align:center;" rowspan="2"><audio controls="controls" style="width: 190px;"><source src="audios/SpeechFactorization_samples/source/6180100163014579264.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+					<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/SpeechFactorization_samples/prompt/prompt3/-3133904573328901327.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+					<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/SpeechFactorization_samples/generated/gen3/4648220778277450149.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+					</tr>
+					<tr>
+					<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/SpeechFactorization_samples/prompt/prompt3/-6807997165982172717.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+					<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/SpeechFactorization_samples/generated/gen3/3417274376341807017.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+					</tr>
+
+					<tr>
+					<td style="vertical-align : middle;text-align:center;" rowspan="2"><audio controls="controls" style="width: 190px;"><source src="audios/SpeechFactorization_samples/source/3454520432972073544.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+					<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/SpeechFactorization_samples/prompt/prompt4/3957690686751537502.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+					<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/SpeechFactorization_samples/generated/gen4/8580165735770550130.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+					</tr>
+					<tr>
+					<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/SpeechFactorization_samples/prompt/prompt4/-6025252638827969073.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+					<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/SpeechFactorization_samples/generated/gen4/-2291633937079669023.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+					</tr>
+				</tbody>
+			</table>
+		</div>
+</div>
+
+
+<div class="container pt-5 mt-5 shadow-lg p-5 mb-5 bg-white rounded">
+	<h2 id="rl-samples" style="text-align: center;">Preference Biasing Through Reinforcement Learning</h2>
+	<br>
+	<h4 id="rl-icl-samples" style="text-align: center;">Emotion Control in Zero-shot In-context Learning</h4>
+	<br>
+		<div class="table-responsive pt-3">
+			<table class="table table-hover pt-2">
+				<thead>
+				<tr>
+				<th style="text-align: center">Prompt</th>
+				<th style="text-align: center">Angry</th>
+				<th style="text-align: center">Happy </th>
+				<th style="text-align: center">Sad</th>
+				<th style="text-align: center">Surprise</th>
+				<th style="text-align: center">w/o Control</th>
+				</tr>
+				</thead>
+				<tbody>
+					<tr>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/RL_ICL_samples/-460085021306370771.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/RL_ICL_samples/6812245234238900092.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/RL_ICL_samples/8964889068149440230.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/RL_ICL_samples/-5611264446119349866.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/RL_ICL_samples/381094634569450166.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/RL_ICL_samples/-1967925121328108260.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+					</tr>
+					<tr>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/RL_ICL_samples/8290562072664275415.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/RL_ICL_samples/4669817616237566758.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/RL_ICL_samples/-4987377457581832537.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/RL_ICL_samples/-5282986181050362834.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/RL_ICL_samples/-7183650758233635696.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/RL_ICL_samples/7154533396617242681.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+					</tr>
+					<tr>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/RL_ICL_samples/7179544590255160574.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/RL_ICL_samples/-1611439966837919525.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/RL_ICL_samples/-5690312799530272660.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/RL_ICL_samples/-232344367726555155.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/RL_ICL_samples/804561433301942583.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/RL_ICL_samples/-7041994779270637983.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+					</tr>
+					<tr>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/RL_ICL_samples/4429815384255822880.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/RL_ICL_samples/8068139897496883753.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/RL_ICL_samples/2666498491515616622.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/RL_ICL_samples/-9055990471430321153.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/RL_ICL_samples/-7073940100099841346.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/RL_ICL_samples/-3039407008788029339.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+					</tr>
+				</tbody>
+			</table>
+		</div>
+</div>
+
+
+<div class="container pt-5 mt-5 shadow-lg p-5 mb-5 bg-white rounded">
+	<h2 id="full-diffusion-samples" style="text-align: center;">Fully Diffusion-based Speech Generation</h2>
+	<br>
+	<h4 id="full-diffusion-tts-samples" style="text-align: center;">Zero-shot TTS</h4>
+	<br>
+		<div class="table-responsive pt-3">
+			<table class="table table-hover pt-2">
+				<thead>
+				<tr>
+				<th style="text-align: center">Language</th>
+				<th style="text-align: center">Prompt</th>
+				<th style="text-align: center">Same Language Generation</th>
+				<th style="text-align: center">Corss-linugal Generation</th>
+				</tr>
+				</thead>
+				<tbody>
+					<tr>
+					<td style="vertical-align : middle;text-align:center;" rowspan="3">EN</td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/DIT_samples/EN/prompt/1633271225213131756.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/DIT_samples/EN/generated/360023576699945786.wav" autoplay/>Your browser does not support the audio element.</audio><br>I don't really care what you call me. I've been a silent spectator, watching species evolve, empires rise and fall. But always remember, I am mighty and enduring. Respect me and I'll nurture you; ignore me and you shall face the consequences.</td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/DIT_samples/EN2ZH/-7079569688831511611.wav" autoplay/>Your browser does not support the audio element.</audio><br>顿时，气氛变得沉郁起来。乍看之下，一切的困扰仿佛都围绕在我身边。我皱着眉头，感受着那份压力，但我知道我不能放弃，不能认输。于是，我深吸一口气，心底的声音告诉我：“无论如何，都要冷静下来，重新开始。”</td>
+					</tr>
+					<tr>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/DIT_samples/EN/prompt/-8603967296425257071.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/DIT_samples/EN/generated/5148472491237252962.wav" autoplay/>Your browser does not support the audio element.</audio><br>Perhaps they are driven by the delicious blend of flavors, or it could be the appealing visual presentation. At the end of the day, our choices in food reflect our personal preferences and sometimes, even our lifestyle or belief system.</td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/DIT_samples/EN2ZH/8401905743596062316.wav" autoplay/>Your browser does not support the audio element.</audio><br>我抬起头，坚定地说：“身高不能决定一切，这世界在看我，我更看得到世界。无论是北上广，或是别的什么，我都将以我自己的方式去攀爬，去追逐。我可能小，但我绝不会被忽视。”</td>
+					</tr>
+					<tr>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/DIT_samples/EN/prompt/-7719896793530998507.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/DIT_samples/EN/generated/5490576341212560870.wav" autoplay/>Your browser does not support the audio element.</audio><br>Your safety and the pack's reputation are at stake. Your bravery is admirable, but sometimes bravery is knowing when to retreat. Please, consider returning with me. We can work out a plan, but only if you're willing to listen.</td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/DIT_samples/EN2ZH/4093595997861513288.wav" autoplay/>Your browser does not support the audio element.</audio><br>你的安全以及族群的声誉都危在旦夕。你的勇敢令人钦佩，但有时候勇敢在于懂得何时撤退。拜托，考虑一下和我一起回去吧。我们可以制定一个计划，但前提是你愿意倾听。</td>
+					</tr>
+
+					<tr>
+					<td style="vertical-align : middle;text-align:center;" rowspan="3">ZH</td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/DIT_samples/ZH/prompt/-4202818730519913143.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/DIT_samples/ZH/generated/-6796699956241665052.wav" autoplay/>Your browser does not support the audio element.</audio><br>突然，身边一阵笑声。我看着他们，意气风发地挺直了胸膛，甩了甩那稍显肉感的双臂，轻笑道："我身上的肉，是为了掩饰我爆棚的魅力，否则，岂不吓坏了你们呢？"</td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/DIT_samples/ZH2EN/-3314661953960107227.wav" autoplay/>Your browser does not support the audio element.</audio><br>Suddenly, there was a burst of laughter beside me. I looked at them, stood up straight with high spirit, shook the slightly fleshy arms, and smiled lightly, saying, "The flesh on my body is to hide my bursting charm. Otherwise, wouldn't it scare you?"</td>
+					</tr>
+					<tr>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/DIT_samples/ZH/prompt/7764822540508885310.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/DIT_samples/ZH/generated/3774366278849636071.wav" autoplay/>Your browser does not support the audio element.</audio><br>这是一种策略，也是一种智慧。万变不离其宗，只要你把握住当前的游戏规则，就能玩转整个局势。“记住，预知敌情，了解自己，方能成就一番伟业。”我认真地对你说，希望你能明白这个道理。</td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/DIT_samples/ZH2EN/3202201897905681083.wav" autoplay/>Your browser does not support the audio element.</audio><br>This is a strategy, and also a kind of wisdom. All changes come from the same source, as long as you grasp the current rules of the game, you can handle the whole situation. "Remember, to know the enemy's situation in advance and to understand yourself, can you achieve great achievements." I said to you seriously, hoping that you can understand this truth.</td>
+					</tr>
+					<tr>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/DIT_samples/ZH/prompt/5094712038347911184.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/DIT_samples/ZH/generated/-4142649641074121320.wav" autoplay/>Your browser does not support the audio element.</audio><br>皇上的面色未变，宛如雕塑般静止，他的眼中闪过一丝动人的温度。他深深地看了那位忠心耿耿的臣子一眼，终于开口：“诺，我会再考虑考虑的。”他的声音低沉且坚定，留下空气中隐隐的无奈与柔情。</td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/DIT_samples/ZH2EN/-4939182216685401572.wav" autoplay/>Your browser does not support the audio element.</audio><br>The emperor's complexion did not change, remaining as still as a sculpture, and a touch of touching warmth flashed in his eyes. He deeply glanced at the loyal minister, and finally spoke: "Well, I will consider it again." His voice was low and firm, leaving a faint hint of helplessness and tenderness in the air.</td>
+					</tr>
+				</tbody>
+			</table>
+		</div>
+	<br>
+	<h4 id="full-diffusion-content-edit-samples" style="text-align: center;">Content Editing</h4>
+	<br>
+		<div class="table-responsive pt-3">
+			<table class="table table-hover pt-2">
+				<thead>
+				<th style="text-align: center">Language</th>
+				<th style="text-align: center">Original Text</th>
+				<th style="text-align: center">Original Audio</th>
+				<th style="text-align: center">Target Text</th>
+				<th style="text-align: center">Edited Audio</th>
+				</thead>
+				<tbody>
+					<tr>
+						<td style="vertical-align : middle;text-align:center;" rowspan="2">EN</td>
+						<td style="vertical-align : middle;text-align:center;">They can't order me to stop dreaming. If you dream a thing more than once, it's sure to come true. Have faith in your dreams, and someday your rainbow will come shining through.</td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/DITEdit_samples/source/2372076002032794455.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+						<td style="vertical-align : middle;text-align:center;">They can't <b>require</b> me to stop <b>imagining.</b> If you envision a thing more than once, it's <b>bound</b> to come <b>about</b>. Have <b>trust</b> in your <b>visions</b>, and someday your <b>radiance</b> will come <b>beaming</b> through.</td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/DITEdit_samples/generated/-8225514747093151979.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+					</tr>
+					<tr>
+						<td style="vertical-align : middle;text-align:center;">Are you familiar with it? Slice the steak and place the strips on top, then garnish with the dried cranberries, pine nuts, and blue cheese. I wonder how people rationalise the decision?</td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/DITEdit_samples/source/3347127306902202498.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+						<td style="vertical-align : middle;text-align:center;">Are you <b>acquainted</b> with it? <b>Cut the pork</b> and place the strips on top, then garnish with the dried <b>cherries, almonds,</b> and <b>feta</b> cheese. I <b>query</b> how people <b>justify</b> the <b>choice?</b></td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/DITEdit_samples/generated/-721969257742825547.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+					</tr>
+					<tr>
+						<td style="vertical-align : middle;text-align:center;" rowspan="2">ZH</td>
+						<td style="vertical-align : middle;text-align:center;">自古以来，庸君最怕党政了，可圣君他就不怕，不但不怕，反能利用。要我说，你就让明珠索额图互相争宠，只要你心里明白，左右逢源，你就能立于不败之地。</td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/DITEdit_samples/source/1297014176484007082.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+						<td style="vertical-align : middle;text-align:center;"><b>从古至今</b>，庸君最怕<b>朝纲了</b>，可<b>明</b>君他就不怕，不但不怕，反能<b>借助</b>。要我说，你就让<b>李四张三</b>互相争宠，只要你心里<b>清楚</b>，左右<b>周旋</b>，你就能<b>处</b>于不败之<b>境</b>。</td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/DITEdit_samples/generated/2455904530888241246.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+					</tr>
+					<tr>
+						<td style="vertical-align : middle;text-align:center;">对，这就是我，万人敬仰的太乙真人，虽然有点婴儿肥，但也掩不住我逼人的帅气。</td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/DITEdit_samples/source/-40165564411515767.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+						<td style="vertical-align : middle;text-align:center;">对，这就是我，<b>众人尊崇</b>的太<b>白金星</b>，虽然有点<b>娃娃脸</b>，但也<b>遮</b>不住我<b>迷人</b>的<b>魅力。</b></td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/DITEdit_samples/generated/5710927739229863116.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+					</tr>
+				</tbody>
+			</table>
+		</div>
+	<br>
+	<h4 id="full-diffusion-speed-edit-samples" style="text-align: center;">Speed Editing</h4>
+	<br>
+		<div class="table-responsive pt-3">
+			<table class="table table-hover pt-2">
+				<thead>
+				<th style="text-align: center">Language</th>
+				<th style="text-align: center">Original Audio</th>
+				<th style="text-align: center">Speed=0.8</th>
+				<th style="text-align: center">Speed=1.2</th>
+				</thead>
+				<tbody>
+					<tr>
+						<td style="vertical-align : middle;text-align:center;" rowspan="3">EN</td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/DITSpeedEdit_samples/source/-9137124271391977517.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/DITSpeedEdit_samples/speed0.8/-9054375120772123360.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/DITSpeedEdit_samples/speed1.2/-4531072882662950828.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+					</tr>
+					<tr>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/DITSpeedEdit_samples/source/-5247078927094752041.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/DITSpeedEdit_samples/speed0.8/-8490229615096695768.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/DITSpeedEdit_samples/speed1.2/6248371327897167051.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+					</tr>
+					<tr>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/DITSpeedEdit_samples/source/1884987640628645366.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/DITSpeedEdit_samples/speed0.8/267121058223478445.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/DITSpeedEdit_samples/speed1.2/-7152548741263336907.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+					</tr>
+					<tr>
+						<td style="vertical-align : middle;text-align:center;" rowspan="3">ZH</td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/DITSpeedEdit_samples/source/8477261635287246703.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/DITSpeedEdit_samples/speed0.8/-3252731115161173273.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/DITSpeedEdit_samples/speed1.2/-6188479119265794207.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+					</tr>
+					<tr>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/DITSpeedEdit_samples/source/2503671438458103608.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/DITSpeedEdit_samples/speed0.8/2883295402828668578.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/DITSpeedEdit_samples/speed1.2/-2208700944703030103.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+					</tr>
+					<tr>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/DITSpeedEdit_samples/source/6208360477111995200.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/DITSpeedEdit_samples/speed0.8/6485003960722881046.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/DITSpeedEdit_samples/speed1.2/-8642810107283360446.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+					</tr>
+				</tbody>
+			</table>
+		</div>
+</div>
+
+
+<div class="container pt-5 mt-5 shadow-lg p-5 mb-5 bg-white rounded">
+	<h2 id="applications-samples" style="text-align: center;">Model Applications</h2>
+	<br>
+	<h4 id="novel-samples" style="text-align: center;">Audio Book</h4>
+	<br>
+		<div class="table-responsive pt-3">
+			<table class="table table-hover pt-2">
+				<thead>
+				<tr>
+				<th style="text-align: center"> </th>
+				<th style="text-align: center">Text </th>
+				<th style="text-align: center">Generated</th>
+				</tr>
+				</thead>
+				<tbody>
+					<tr>
+						<td style="vertical-align : middle;text-align:center;">Multi-speaker</td>
+						<td style="vertical-align : middle;text-align:left;">“这个药丸……不会是迷药或者春药之类的东西吧？我怎么闻着香味儿和两位姐姐说的那么相似？嗯，你该不会……想对我图谋不轨吧？”韩立闻言是愣了半天呐，他现在突然有种吐血三碗的感觉，这女孩儿的心思也太难以捉摸了吧，竟然能把迎香丸，联想到春药上。哎呀韩立现在也不知是该佩服对方的谨慎小心，还是应该为自己的无故蒙冤，而大呼三声了。“看样子，你好像说的是真的。不过，我还是要把它拿去给二姐检验下才能用，毕竟我们女儿家，要小心为上。”“咳，咳，呃随便你了。”韩立无言，只能干咳几声，掩饰一下自己脸上的窘迫，他现在觉得呀，自己还是离这个小妖精远点的好，否则，不知什么时候就要被她给郁闷死了。“哼哼，不过，如果这药真像你所说的那么好用，那就算你过关啦！今后师兄在莫府有什么为难的事，尽管可以来找彩环帮忙。我只要收些小小的报酬，就肯定能帮你完全解决。”“行啊，师妹，师兄有事，一定找你帮忙。”韩立这时也恢复了常态，皮笑肉不笑地回应着此话，心里呀，却在恶狠狠地想到：“找你这个小财迷才怪了。”</td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/Novel_samples/multi-speaker/-6104864180139059628.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+					</tr>
+					<tr>
+						<td style="vertical-align : middle;text-align:center;">Speaker1</td>
+						<td style="vertical-align : middle;text-align:left;">老夫人疑惑，“娇娇，你今儿是怎么了？”平日里，她的娇娇儿和萧弈的关系也没这么好。“我……”南宝衣生怕被发现端倪，又有心提醒老夫人萧弈将来前程不可限量，于是哽咽着扑进老人怀里，“我没有爹娘疼，二哥哥也没有爹娘疼，府里的人都不搭理他，就算他在书院考了一甲也没人在意，二哥哥好可怜呜呜呜……”季嬷嬷笑道：“老奴瞧着，五小姐怕是和二公子有缘呢。”</td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/Novel_samples/single-speaker/-842185376157462681.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+					</tr>
+					<tr>
+						<td style="vertical-align : middle;text-align:center;">Speaker2</td>
+						<td style="vertical-align : middle;text-align:left;">我也不知是哪里来的勇气，一把抓住那放肆的手，可就在我抓住那手的瞬间，他将脸埋在我的耳边深吸一口，“别动。”“你……你到底要干什么呀？你饶了我吧，我真的错了，只要你放了我，你要我烧什么给你都行！”“你是我的女人，我只要你。”“欸哟，我给你烧蚕丝被，烧电热毯，再给你烧十个仿真娃娃，要啥明星款式都有。欸呀求求你放了我吧。”我说着都快哭了，抓着他的手也抖的厉害。哪知他听了噗嗤一笑，一口咬住我的耳珠狠狠的吮吸着，“不要再挣扎了，你生是我的妻，死是我的鬼！”</td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 190px;"><source src="audios/Novel_samples/single-speaker/-3810254197712667818.wav" autoplay/>Your browser does not support the audio element.</audio></td>
+					</tr>
+				</tbody>
+			</table>
+		</div>
+	<br>
+	<h4 id="cla-samples" style="text-align: center;">Cross-lingual Content Creation</h4>
+	<br>
+		<div class="table-responsive pt-3">
+			<table class="table table-hover pt-2">
+				<thead>
+				<tr>
+				<th style="text-align: center"> </th>
+				<th style="text-align: center">Source Video</th>
+				<th style="text-align: center">Generated Video</th>
+				</tr>
+				</thead>
+				<tbody>
+					<tr>
+						<td style="vertical-align : middle;text-align:center;">ZH2EN</td>
+						<td style="vertical-align : middle;text-align:center;">
+							<video width="250" height="400" controls>
+								<source src="audios/CLA_samples/zh2en_showcase.mp4" type="video/mp4">
+							</video>
+						</td>
+						<td style="vertical-align : middle;text-align:center;">
+							<video width="250" height="400" controls>
+								<source src="audios/CLA_samples/zh2en_showcase_res.mp4" type="video/mp4">
+							</video>
+						</td>
+					</tr>
+					<tr>
+						<td style="vertical-align : middle;text-align:center;">PT2EN</td>
+						<td style="vertical-align : middle;text-align:center;">
+							<video width="250" height="400" controls>
+								<source src="audios/CLA_samples/test_pt2en.mp4" type="video/mp4">
+							</video>
+						</td>
+						<td style="vertical-align : middle;text-align:center;">
+							<video width="250" height="400" controls>
+								<source src="audios/CLA_samples/test_pt2en_res_24k.mp4" type="video/mp4">
+							</video>
+						</td>
+					</tr>
+					<tr>
+						<td style="vertical-align : middle;text-align:center;">ZH2EN<br>(With Mouth Editing)</td>
+						<td style="vertical-align : middle;text-align:center;">
+							<video width="250" height="400" controls>
+								<source src="audios/CLA_samples/test_speaking_24k.mp4" type="video/mp4">
+							</video>
+						</td>
+						<td style="vertical-align : middle;text-align:center;">
+							<video width="250" height="400" controls>
+								<source src="audios/CLA_samples/test_speaking_res_24k.mp4" type="video/mp4">
+							</video>
+						</td>
+					</tr>
+					<tr>
+						<td style="vertical-align : middle;text-align:center;">EN2ES<br>(With Mouth Editing)</td>
+						<td style="vertical-align : middle;text-align:center;">
+							<video width="256" height="454" controls>
+								<source src="audios/CLA_samples/en2es_showcase_24k.mp4" type="video/mp4">
+							</video>
+						</td>
+						<td style="vertical-align : middle;text-align:center;">
+							<video width="256" height="454" controls>
+								<source src="audios/CLA_samples/en2es_test.mp4" type="video/mp4">
+							</video>
+						</td>
+					</tr>
+				</tbody>
+			</table>
+		</div>
+
+</div>
+
+
+
+</article>
+</main>
+</div>
+
+</body>
+</html>
