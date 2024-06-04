@@ -64,7 +64,7 @@
 	</p>
 	</body>
 		<p style="text-align: center;" >
-			<b>Figure 1.</b> An overview of the Seed-TTS inference pipeline. (1) The speech tokenizer learns discrete tokens from reference speech. (2) The autoregressive language model generates the speech tokens from the text tokens and discrete tokens from the speech tokenizer. (3) The diffusion transformer model generates continuous speech representations given discrete speech tokens in a coarse-to-fine manner. (4) The acoustic vocoder yields higher-quality speech from the diffusion output
+			<b>Figure 1.</b> An overview of the Seed-TTS inference pipeline. (1) The speech tokenizer learns tokens from reference speech. (2) The autoregressive language model generates the speech tokens based on the condition text and speech. (3) The diffusion transformer model generates continuous speech representations given generated speech tokens in a coarse-to-fine manner. (4) The acoustic vocoder yields higher-quality speech from the diffusion output.
 		</p>
 </div>
 
