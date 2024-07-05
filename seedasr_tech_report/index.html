@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<meta charset="utf-8">
+	<meta name="generator" content="Hugo 0.88.1" />
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link href="https://fonts.googleapis.com/css?family=Roboto:300,400,700" rel="stylesheet" type="text/css">
+	<link rel="stylesheet" href=""https://cdnjs.cloudflare.com/ajax/libs/highlight.js/8.4/styles/github.min.css">
+	<link rel="stylesheet" href="css/custom.css">
+	<link rel="stylesheet" href="css/normalize.css">
+
+	<title>Seed-ASR: <br>Tech Report</title>
+	<link href="css/bootstrap.min.css" rel="stylesheet">
+	
+	<title>Click Button to Show Text</title>
+	<script>
+	function showText(text_id, buttid_id) {
+	  var text = document.getElementById(text_id);
+	  text.style.display = 'block';
+	  var button = document.getElementById(buttid_id);
+	  button.style.display = 'none';
+	}
+	</script>
+	<style>
+	.annotation {
+		position: relative;
+		font-size: 14px; /* 标准文字大小 */
+	}
+	.annotation sup {
+		position: absolute;
+		top: 5px;
+		left: -10px; /* 根据需要调整左偏移量 */
+		font-size: 12px; /* 角标大小，根据需要调整 */
+	}
+	</style>
+</head>
+
+
+<body data-new-gr-c-s-check-loaded="14.1091.0" data-gr-ext-installed="">
+
+<div class="container" >
+<header role="banner">
+</header>
+<main role="main">
+<article itemscope itemtype="https://schema.org/BlogPosting">
+
+<div class="container pt-5 mt-5 shadow-lg p-5 mb-5 bg-white rounded">
+	<div class="text-center">
+	<h2>Seed-ASR: </h2>
+	<h3>Understanding Diverse Speech and Contexts with LLM-based Speech Recognition</h3>
+	[<a href="https://arxiv.org/">Paper</a>]
+        <p class="fst-italic mb-0">
+			<br>
+          Seed Team
+      <p></p>
+        </p>
+        <p><b>ByteDance</b></p>
+	</div>
+	<p><b>Abstract.</b> Modern automatic speech recognition (ASR) model is required to accurately transcribe diverse speech signals 
+		(from different domains, languages, accents, etc) given the specific contextual information in various application scenarios.
+		Classic end-to-end models fused with extra language models perform well, but mainly in data matching scenarios and are gradually 
+		approaching a bottleneck. In this work, we introduce Seed-ASR, a large language model (LLM) based speech recognition model.
+		Seed-ASR is developed based on the framework of audio conditioned LLM (AcLLM), leveraging the capabilities of LLMs by 
+		inputting continuous speech representations together with contextual information into the LLM. Through stage-wise large-scale 
+		training and the elicitation of context-aware capabilities in LLM, Seed-ASR demonstrates significant improvement over end-to-end models 
+		on comprehensive evaluation sets, including multiple domains, accents/dialects and languages. Additionally, Seed-ASR can be further deployed to 
+		support specific needs in various scenarios without requiring extra language models. Compared to recently released large ASR models, 
+		Seed-ASR achieves 10%-40% reduction in word (or character, for Chinese) error rates on Chinese and English public test sets, further demonstrating its powerful performance.
+	</p>
+	<p style="text-align: center;">
+		<img src="pics/all_eval_bar.png" height="480" width="960">
+	</p>
+	<p>
+	<b>Contents</b>
+      <ul>
+        <li><a href="#model-overview">System Overview</a></li>
+        <li><a href="#model_and_eval">Model & Evaluation</a></li>
+		<!-- <ul>
+			<li><a href="#context_cn_eval_result">Context-aware Ability</a></li>
+			<li><a href="#noise_eval_result">Transcripts of Seed-ASR on Speech with Background Noise</a></li>
+		</ul> -->
+      </ul>
+	</p>
+
+	
+</div>
+
+
+<div class="container pt-5 mt-5 shadow-lg p-5 mb-5 bg-white rounded">		
+	<h2 id="model-overview" style="text-align: center;">System Overview</h2>
+	<p style="text-align: center;">
+		<img src="pics/overview_acllm.png" height="480" width="960">
+	</p>
+	<p style="text-align: center;" >
+		<b>Figure 1.</b>The model framework used in Seed-ASR. When contexts are provided, the instruction is 
+		"There are relevant contexts, transcribe the speech into text:". 
+		Otherwise, the instruction is "Transcribe the speech into text:".
+	</p>
+</div>
+
+
+<div class="container pt-5 mt-5 shadow-lg p-5 mb-5 bg-white rounded">
+	<h2 id="model_and_eval" style="text-align: center;">Model & Evaluation</h2>
+		<h3 id="context_cn_eval_result" style="text-align: center;">Context-aware Ability</h3>
+		<div class="table-responsive pt-3">
+			<table class="table table-hover pt-2">
+				<thead>
+				<tr>
+				<th style="vertical-align : middle;text-align: center">Context-Aware Type</th>
+				<th style="vertical-align : middle;text-align: center">Demo</th>
+				<th style="vertical-align : middle;text-align: center">Explanation</th>
+				</tr>
+				</thead>
+				<tbody>
+					<tr>
+						<td style="vertical-align : middle;text-align:center;">The content of dialogue history</td>
+						<td style="vertical-align : middle;text-align:center;">
+							<video width="300" height="534" controls>
+								<source src="audios/Context_samples/context_demo1.mp4" type="video/mp4">
+							</video>
+						</td>
+						<td style="vertical-align : middle;text-align:center;">
+							In the first round of conversation, <br>
+							"庞葱 (Pang Cong)" is mistakenly recognized <br>
+							as the homophone "庞冲 (Pang Chong)" <br>
+							without contextual knowledge.<br>
+							When further discussing the characters <br>
+							in "The Romance of the Three Kingdoms" <br>
+							with Doubao, "庞冲 (Pang Chong)" is <br>
+							recognized correctly in the second attempt,<br>
+							as the conversation history mentioning <br>
+							this name is added to the recognition<br>
+							prompt as context.
+						</td>
+					</tr>
+					<tr>
+						<td style="vertical-align : middle;text-align:center;">The name of agent</td>
+						<td style="vertical-align : middle;text-align:center;">
+							<video width="300" height="534" controls>
+								<source src="audios/Context_samples/context_demo2.mp4" type="video/mp4">
+							</video>
+						</td>
+						<td style="vertical-align : middle;text-align:center;">
+							For the conversational agent "枫丹 (Feng Dan)", <br>
+							its nickname "枫丹 (Feng Dan)" will be added to <br>
+							the recognition prompt as context to improve <br>
+							the accuracy of recognizing the name of <br>
+							the conversational agent. <br>
+							However, without relevant background <br>
+							knowledge provided in the prompt, <br>
+							the name of the agent may be <br>
+							recognized as other semantically <br>
+							reasonable homophones.
+						</td>
+					</tr>
+					<tr>
+						<td style="vertical-align : middle;text-align:center;">The decription information of agent</td>
+						<td style="vertical-align : middle;text-align:center;">
+							<video width="300" height="534" controls>
+								<source src="audios/Context_samples/context_demo3.mp4" type="video/mp4">
+							</video>
+						</td>
+						<td style="vertical-align : middle;text-align:center;">
+							When talking with the <br>
+							conversational agent "顾易 (Gu Yi)", <br>
+							the agent's description text will <br>
+							be added to the recognition prompt <br>
+							as context to improve the accuracy of <br>
+							recognizing descriptions related to <br>
+							the conversational agent.
+						</td>
+					</tr>
+					<tr>
+						<td style="vertical-align : middle;text-align:center;">The modification history record</td>
+						<td style="vertical-align : middle;text-align:center;">
+							<video width="300" height="534" controls>
+								<source src="audios/Context_samples/context_demo4.mp4" type="video/mp4">
+							</video>
+						</td>
+						<td style="vertical-align : middle;text-align:center;">
+							In the first video, professional phrase <br>
+							in skiing such as the "立刃 (li ren)" may be <br>
+							recognized as the homophone "利刃 (li ren)". <br>
+							However, users will correct the wrong recognition <br>
+							results in the subtitles. These modifications, <br>
+							such as the transformation from "利刃" to "立刃" <br>
+							will be used as recognition prompts when <br>
+							recognizing the second video, <br>
+							so the same errors in <br>
+							the second video will be avoided.
+						</td>
+					</tr>
+					<tr>
+						<td style="vertical-align : middle;text-align:center;">The name of meeting attendees</td>
+						<td style="vertical-align : middle;text-align:center;">
+							<video width="300" height="534" controls>
+								<source src="audios/Context_samples/context_demo5.mp4" type="video/mp4">
+							</video>
+						</td>
+						<td style="vertical-align : middle;text-align:center;">
+							When inviting attendees to a Lark meeting, <br>
+							all attendees' names will be used as context. <br>
+							When the same attendee's name <br>
+							appears again, the recognition result <br>
+							will be corrected.
+						</td>
+					</tr>
+				</tbody>
+			</table>
+		</div>
+		<br>
+		<h3 id="multidomain_eval_result" style="text-align: center;">Transcripts of Seed-ASR on Multi-domain Set</h3>
+		<div class="table-responsive pt-3">
+			<table class="table table-hover pt-2">
+				<thead>
+				<tr>
+				<th style="vertical-align : middle;text-align: center"></th>
+				<th style="vertical-align : middle;text-align: center">Audio</th>
+				<th style="vertical-align : middle;text-align: center">Seed-ASR</th>
+				</tr>
+				</thead>
+				<tbody>
+					<tr>
+						<td style="vertical-align : middle;text-align:center;">Sample1</td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 300px;"><source src="audios/Multidomain_samples/multidomain_sample1.wav" autoplay/></audio></td>
+						<td style="vertical-align : middle;text-align:center;">
+							<button id="button_multidomain_1" onclick="showText('multidomain_sample1_trans', 'button_multidomain_1')" style>Reveal Transcript</button>
+							<div id="multidomain_sample1_trans" style="display: none;">
+								八月吃板栗生活更给力哦粒上皇冰魔栗<br>
+								最后一波福利来了门店三十五抖音下单只需要十七块九哦<br>
+								夏天怎么能少的了粒上皇的冰魔栗呢
+							</div>
+						</td>
+					</tr>
+					<tr>
+						<td style="vertical-align : middle;text-align:center;">Sample2</td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 300px;"><source src="audios/Multidomain_samples/multidomain_sample2.wav" autoplay/></audio></td>
+						<td style="vertical-align : middle;text-align:center;">
+							<button id="button_multidomain_2" onclick="showText('multidomain_sample2_trans', 'button_multidomain_2')" style>Reveal Transcript</button>
+							<div id="multidomain_sample2_trans" style="display: none;">猪前肩肉去搭配啊特别的香你们一定要去试一下
+							</div>
+						</td>
+					</tr>
+					<tr>
+						<td style="vertical-align : middle;text-align:center;">Sample3</td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 300px;"><source src="audios/Multidomain_samples/multidomain_sample3.wav" autoplay/></audio></td>
+						<td style="vertical-align : middle;text-align:center;">
+							<button id="button_multidomain_3" onclick="showText('multidomain_sample3_trans', 'button_multidomain_3')" style>Reveal Transcript</button>
+							<div id="multidomain_sample3_trans" style="display: none;">前辈们给他上一课
+							</div>
+						</td>
+					</tr>
+					<tr>
+						<td style="vertical-align : middle;text-align:center;">Sample4</td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 300px;"><source src="audios/Multidomain_samples/multidomain_sample4.wav" autoplay/></audio></td>
+						<td style="vertical-align : middle;text-align:center;">
+							<button id="button_multidomain_4" onclick="showText('multidomain_sample4_trans', 'button_multidomain_4')" style>Reveal Transcript</button>
+							<div id="multidomain_sample4_trans" style="display: none;">是过年玩烟花还是元旦玩烟花
+							</div>
+						</td>
+					</tr>
+					<tr>
+						<td style="vertical-align : middle;text-align:center;">Sample5</td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 300px;"><source src="audios/Multidomain_samples/multidomain_sample5.wav" autoplay/></audio></td>
+						<td style="vertical-align : middle;text-align:center;">
+							<button id="button_multidomain_5" onclick="showText('multidomain_sample5_trans', 'button_multidomain_5')" style>Reveal Transcript</button>
+							<div id="multidomain_sample5_trans" style="display: none;">香奶奶家做工高不高级姐妹们非常高级百分之九十五都是香奶奶家做工纯手工缝制的包边包条的设计防盗扣子五年十年不会掉水晶的双子标认证丹麦进口的小母貂金标认证带有咱们家专柜金标发货不剪标德国双股姐妹织法珠光面料不起球不起电不刮丝三防防的面料漂洋过海过来的琉璃
+							</div>
+						</td>
+					</tr>
+					<tr>
+						<td style="vertical-align : middle;text-align:center;">Sample6</td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 300px;"><source src="audios/Multidomain_samples/multidomain_sample6.wav" autoplay/></audio></td>
+						<td style="vertical-align : middle;text-align:center;">
+							<button id="button_multidomain_6" onclick="showText('multidomain_sample6_trans', 'button_multidomain_6')" style>Reveal Transcript</button>
+							<div id="multidomain_sample6_trans" style="display: none;">i could have my gucci on
+							</div>
+						</td>
+					</tr>
+					<tr>
+						<td style="vertical-align : middle;text-align:center;">Sample7<sup>*</sup></td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 300px;"><source src="audios/Multidomain_samples/multidomain_sample7.wav" autoplay/></audio></td>
+						<td style="vertical-align : middle;text-align:center;">
+							<button id="button_multidomain_7" onclick="showText('multidomain_sample7_trans', 'button_multidomain_7')" style>Reveal Transcript</button>
+							<div id="multidomain_sample7_trans" style="display: none;">rumah sakit telah mengikuti protokol untuk pengendalian infeksi termasuk memisahkan pasien dari orang lain untuk mencegah kemungkinan menulari mereka
+							</div>
+						</td>
+					</tr>
+					<tr>
+						<td style="vertical-align : middle;text-align:center;">Sample8</td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 300px;"><source src="audios/Multidomain_samples/multidomain_sample8.wav" autoplay/></audio></td>
+						<td style="vertical-align : middle;text-align:center;">
+							<button id="button_multidomain_8" onclick="showText('multidomain_sample8_trans', 'button_multidomain_8')" style>Reveal Transcript</button>
+							<div id="multidomain_sample8_trans" style="display: none;">persib vs persija malam ini
+							</div>
+						</td>
+					</tr>
+				</tbody>
+			</table>
+		</div>
+
+		<br>
+		<h3 id="dialect_eval_result" style="text-align: center;">Transcripts of Seed-ASR on Multi-dialect Set</h3>
+		<div class="table-responsive pt-3">
+			<table class="table table-hover pt-2">
+				<thead>
+				<tr>
+				<th style="vertical-align : middle;text-align: center">Dialect</th>
+				<th style="vertical-align : middle;text-align: center">Audio</th>
+				<th style="vertical-align : middle;text-align: center">Reference</th>
+				<th style="vertical-align : middle;text-align: center">Seed-ASR</th>
+				</tr>
+				</thead>
+				<tbody>
+					<tr>
+						<td style="vertical-align : middle;text-align:center;">Wuu</td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 200px;"><source src="audios/Multidialect_samples/wuu_dialect_sample.wav" autoplay/></audio></td>
+						<td style="vertical-align : middle;text-align:center;">
+							<button id="button_dialect_ref_1" onclick="showText('wuu_dialect_ref', 'button_dialect_ref_1')" style>Reveal Reference</button>
+							<div id="wuu_dialect_ref" style="display: none;">侬如果欢喜我就快点帮我表白唻<br>嗯人搿辈子末总归要尝试一下拨美女拒绝个味道个呀<br>侬哪能还勿来帮我表白啦
+							</div>
+						</td>
+						<td style="vertical-align : middle;text-align:center;">
+							<button id="button_dialect_1" onclick="showText('wuu_dialect_trans', 'button_dialect_1')" style>Reveal Transcript</button>
+							<div id="wuu_dialect_trans" style="display: none;">侬如果欢喜我就快点帮我表白唻<br>人搿辈子末总归要尝试一下拨美女拒绝个味道个呀<br>侬哪能还勿来帮我表白啦
+							</div>
+						</td>
+					</tr>
+					<tr>
+						<td style="vertical-align : middle;text-align:center;">Cantonese</td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 200px;"><source src="audios/Multidialect_samples/cantonese_dialect_sample.wav" autoplay/></audio></td>
+						<td style="vertical-align : middle;text-align:center;">
+							<button id="button_dialect_ref_2" onclick="showText('cantonese_dialect_ref', 'button_dialect_ref_2')" style>Reveal Reference</button>
+							<div id="cantonese_dialect_ref" style="display: none;">做兄弟在心中你 feel 唔到我讲一万句都系废<br>做兄弟在心中你 feel 唔到嘅我讲一万个理由都系废你讲
+							</div>
+						</td>
+						<td style="vertical-align : middle;text-align:center;">
+							<button id="button_dialect_2" onclick="showText('cantonese_dialect_trans', 'button_dialect_2')" style>Reveal Transcript</button>
+							<div id="cantonese_dialect_trans" style="display: none;">做兄弟在心中你 feel 唔到我讲一万句都系废<br>做兄弟在心中你 feel 唔到嘅我讲一万个理由都系废你讲
+							</div>
+						</td>
+					</tr>
+					<tr>
+						<td style="vertical-align : middle;text-align:center;">Sichuan</td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 200px;"><source src="audios/Multidialect_samples/sichuan_dialect_sample.wav" autoplay/></audio></td>
+						<td style="vertical-align : middle;text-align:center;">
+							<button id="button_dialect_ref_3" onclick="showText('sichuan_dialect_ref', 'button_dialect_ref_3')" style>Reveal Reference</button>
+							<div id="sichuan_dialect_ref" style="display: none;">
+							哦这样的一个鸡腿儿电子挡把哈操控很好的很多喜欢宝马的朋友都是喜欢它这个电子档把哈对不对然后还带有换挡膜片儿嗯多功能方向盘儿带换挡膜片儿啊什么定速的巡航啊对不对还有这边儿嵌入式的中控大屏啦智龙的空调啊双座椅加热啊对吧主驾驶座椅双座椅嗯双电动座椅调节而且
+							主驾驶座椅还带有一个两档的记忆好不好
+							</div>
+						</td>
+						<td style="vertical-align : middle;text-align:center;">
+							<button id="button_dialect_3" onclick="showText('sichuan_dialect_trans', 'button_dialect_3')" style>Reveal Transcript</button>
+							<div id="sichuan_dialect_trans" style="display: none;">
+								这样的一个鸡腿电子档把哈操控很好的很多喜欢宝马的朋友都是喜欢他那个电子档把哈对不对然后还带有换挡拨片啊多功能方向盘带换挡拨片啊什么定速的巡航啊对不对然后这边嵌入式的中控大屏啊自动的空调啊双座椅加热啊对吧主驾驶座椅双座椅呃双电动座椅调节而且主驾驶座椅
+								还带有一个两档的记忆好不好
+							</div>
+						</td>
+					</tr>
+					<tr>
+						<td style="vertical-align : middle;text-align:center;">Jlua</td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 200px;"><source src="audios/Multidialect_samples/jlua_dialect_sample.wav" autoplay/></audio></td>
+						<td style="vertical-align : middle;text-align:center;">
+							<button id="button_dialect_ref_4" onclick="showText('jlua_dialect_ref', 'button_dialect_ref_4')" style>Reveal Reference</button>
+							<div id="jlua_dialect_ref" style="display: none;">大坝顶上有平道小路崎岖没必要横批光明正大
+							</div>
+						</td>
+						<td style="vertical-align : middle;text-align:center;">
+							<button id="button_dialect_4" onclick="showText('jlua_dialect_trans', 'button_dialect_4')" style>Reveal Transcript</button>
+							<div id="jlua_dialect_trans" style="display: none;">大坝顶上有平道小路崎岖没必要横批光明正大
+							</div>
+						</td>
+					</tr>
+					<tr>
+						<td style="vertical-align : middle;text-align:center;">Zgyu</td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 200px;"><source src="audios/Multidialect_samples/zgyu_dialect_sample.wav" autoplay/></audio></td>
+						<td style="vertical-align : middle;text-align:center;">
+							<button id="button_dialect_ref_5" onclick="showText('zgyu_dialect_ref', 'button_dialect_ref_5')" style>Reveal Reference</button>
+							<div id="zgyu_dialect_ref" style="display: none;">去啊额开了一段然后额把高速开完导下去奏叫伢开回来走的低速额额么动车额说你给咱开上然后额奏在后头坐着兀面大车多很赫赫有名陶艺村赫赫有名的陶艺村额么去过么
+							</div>
+						</td>
+						<td style="vertical-align : middle;text-align:center;">
+							<button id="button_dialect_5" onclick="showText('zgyu_dialect_trans', 'button_dialect_5')" style>Reveal Transcript</button>
+							<div id="zgyu_dialect_trans" style="display: none;">去呀额开了一段然后额把高速开完倒下去奏叫伢开回来走滴低速额额么动车额说你给咱开上然后额奏在后头坐着兀岸大车多很赫赫有名滴大陶艺村赫赫有名滴陶艺村额么去过么
+							</div>
+						</td>
+					</tr>
+					<tr>
+						<td style="vertical-align : middle;text-align:center;">Xiang</td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 200px;"><source src="audios/Multidialect_samples/xiang_dialect_sample.wav" autoplay/></audio></td>
+						<td style="vertical-align : middle;text-align:center;">
+							<button id="button_dialect_ref_6" onclick="showText('xiang_dialect_ref', 'button_dialect_ref_6')" style>Reveal Reference</button>
+							<div id="xiang_dialect_ref" style="display: none;">恁以为我是不想开空调啵啧条件不允许嘞啊钱一回进咖嗒货唻进一屋的搿号长袖子啊外边嘞三四十度自家啊热得搿宝一样不歇气的抹汗
+							</div>
+						</td>
+						<td style="vertical-align : middle;text-align:center;">
+							<button id="button_dialect_6" onclick="showText('xiang_dialect_trans', 'button_dialect_6')" style>Reveal Transcript</button>
+							<div id="xiang_dialect_trans" style="display: none;">恁以为我是不想开空调啵条件不允许嘞啊钱一回进咖哒货嘞进一屋的搿号长袖子啊外边嘞三四十度自家热得搿宝一样不歇气的抹汗
+							</div>
+						</td>
+					</tr>
+				</tbody>
+			</table>
+		</div>
+		<br>
+		<h3 id="accent_eval_result" style="text-align: center;">Transcripts of Seed-ASR on Multi-accent Set</h3>
+		<div class="table-responsive pt-3">
+			<table class="table table-hover pt-2">
+				<thead>
+				<tr>
+				<th style="vertical-align : middle;text-align: center">Accent</th>
+				<th style="vertical-align : middle;text-align: center">Audio</th>
+				<th style="vertical-align : middle;text-align: center">Seed-ASR</th>
+				</tr>
+				</thead>
+				<tbody>
+					<tr>
+						<td style="vertical-align : middle;text-align:center;">Yunnan Accent</td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 300px;"><source src="audios/Accent_samples/accent_sample_1.wav" autoplay/></audio></td>
+						<td style="vertical-align : middle;text-align:center;">
+							<button id="button_accent_1" onclick="showText('accent_sample_1_trans', 'button_accent_1')" style>Reveal Transcript</button>
+							<div id="accent_sample_1_trans" style="display: none;">坐班车随人带车问题解决了可到新螺蛳湾的南站上车
+							</div>
+						</td>
+					</tr>
+					<tr>
+						<td style="vertical-align : middle;text-align:center;">Gansu Accent</td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 300px;"><source src="audios/Accent_samples/accent_sample_2.wav" autoplay/></audio></td>
+						<td style="vertical-align : middle;text-align:center;">
+							<button id="button_accent_2" onclick="showText('accent_sample_2_trans', 'button_accent_2')" style>Reveal Transcript</button>
+							<div id="accent_sample_2_trans" style="display: none;">这个季节沿途还可以找到真正的虫草和松茸
+							</div>
+						</td>
+					</tr>
+					<tr>
+						<td style="vertical-align : middle;text-align:center;">Henan Accent</td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 300px;"><source src="audios/Accent_samples/accent_sample_3.wav" autoplay/></audio></td>
+						<td style="vertical-align : middle;text-align:center;">
+							<button id="button_accent_3" onclick="showText('accent_sample_3_trans', 'button_accent_3')" style>Reveal Transcript</button>
+							<div id="accent_sample_3_trans" style="display: none;">你有没有推荐给我干小活的瓦工师傅啊
+							</div>
+						</td>
+					</tr>
+					<tr>
+						<td style="vertical-align : middle;text-align:center;">Jiangxi Accent</td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 300px;"><source src="audios/Accent_samples/accent_sample_4.wav" autoplay/></audio></td>
+						<td style="vertical-align : middle;text-align:center;">
+							<button id="button_accent_5" onclick="showText('accent_sample_4_trans', 'button_accent_5')" style>Reveal Transcript</button>
+							<div id="accent_sample_4_trans" style="display: none;">但是如果不太较真秋水广场赣江市民公园都可以
+							</div>
+						</td>
+					</tr>
+					<tr>
+						<td style="vertical-align : middle;text-align:center;">Anhui Accent</td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 300px;"><source src="audios/Accent_samples/accent_sample_5.wav" autoplay/></audio></td>
+						<td style="vertical-align : middle;text-align:center;">
+							<button id="button_accent_6" onclick="showText('accent_sample_5_trans', 'button_accent_6')" style>Reveal Transcript</button>
+							<div id="accent_sample_5_trans" style="display: none;">总的来讲我是两边不讨好问你啊是我是不是云黑啊
+							</div>
+						</td>
+					</tr>
+					<tr>
+						<td style="vertical-align : middle;text-align:center;">Hunan Accent</td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 300px;"><source src="audios/Accent_samples/accent_sample_6.wav" autoplay/></audio></td>
+						<td style="vertical-align : middle;text-align:center;">
+							<button id="button_accent_4" onclick="showText('accent_sample_6_trans', 'button_accent_4')" style>Reveal Transcript</button>
+							<div id="accent_sample_6_trans" style="display: none;">坚持放管结合放管并举的原则积极推行权力清单制度
+							</div>
+						</td>
+					</tr>
+				</tbody>
+			</table>
+		</div>
+		<br>
+		<h3 id="hardcase_eval_result" style="text-align: center;">Transcripts of Seed-ASR on Hardcase Set</h3>
+		<div class="table-responsive pt-3">
+			<table class="table table-hover pt-2">
+				<thead>
+				<tr>
+				<th style="vertical-align : middle;text-align: center"></th>
+				<th style="vertical-align : middle;text-align: center">Audio</th>
+				<th style="vertical-align : middle;text-align: center">Seed-ASR</th>
+				</tr>
+				</thead>
+				<tbody>
+					<tr>
+						<td style="vertical-align : middle;text-align:center;">Sample1</td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 300px;"><source src="audios/Hardcase_samples/hardcase_sample4.wav" autoplay/></audio></td>
+						<td style="vertical-align : middle;text-align:center;">
+							<button id="button_hardcase_4" onclick="showText('hardcase_4_trans', 'button_hardcase_4')" style>Reveal Transcript</button>
+							<div id="hardcase_4_trans" style="display: none;">like i had the em in dark industry
+							</div>
+						</td>
+					</tr>
+					<tr>
+						<td style="vertical-align : middle;text-align:center;">Sample2</td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 300px;"><source src="audios/Hardcase_samples/hardcase_sample5.wav" autoplay/></audio></td>
+						<td style="vertical-align : middle;text-align:center;">
+							<button id="button_hardcase_5" onclick="showText('hardcase_5_trans', 'button_hardcase_5')" style>Reveal Transcript</button>
+							<div id="hardcase_5_trans" style="display: none;">definitely is to drive the em solution selling
+							</div>
+						</td>
+					</tr>
+					<tr>
+						<td style="vertical-align : middle;text-align:center;">Sample3<sup>*</sup></td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 300px;"><source src="audios/Hardcase_samples/hardcase_sample6.wav" autoplay/></audio></td>
+						<td style="vertical-align : middle;text-align:center;">
+							<button id="button_hardcase_6" onclick="showText('hardcase_6_trans', 'button_hardcase_6')" style>Reveal Transcript</button>
+							<div id="hardcase_6_trans" style="display: none;">gereja gereja tradisional sering mengadakan malam paskah pada sabtu malam selama akhir pekan paskah jemaat gereja semacam ini sering spontan merayakan kebangkitan kristus saat tengah malam
+							</div>
+						</td>
+					</tr>
+					<tr>
+						<td style="vertical-align : middle;text-align:center;">Sample4</td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 300px;"><source src="audios/Hardcase_samples/hardcase_sample7.wav" autoplay/></audio></td>
+						<td style="vertical-align : middle;text-align:center;">
+							<button id="button_hardcase_7" onclick="showText('hardcase_7_trans', 'button_hardcase_7')" style>Reveal Transcript</button>
+							<div id="hardcase_7_trans" style="display: none;">como pegar o porco no jurassic parks
+							</div>
+						</td>
+					</tr>
+				</tbody>
+			</table>
+		</div>
+		<br>
+		
+		<h3 id="noise_eval_result" style="text-align: center;">Transcripts of Seed-ASR on Speech with Background Noise</h3>
+		<div class="table-responsive pt-3">
+			<table class="table table-hover pt-2">
+				<thead>
+				<tr>
+				<th style="vertical-align : middle;text-align: center"></th>
+				<th style="vertical-align : middle;text-align: center">Audio</th>
+				<th style="vertical-align : middle;text-align: center">Seed-ASR</th>
+				</tr>
+				</thead>
+				<tbody>
+					<tr>
+						<td style="vertical-align : middle;text-align:center;">Sample1</td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 300px;"><source src="audios/StrongNoise_samples/strong_noise_sample1.wav" autoplay/></audio></td>
+						<td style="vertical-align : middle;text-align:center;">
+							<button id="button_noise_1" onclick="showText('noise_sample1_trans', 'button_noise_1')" style>Reveal Transcript</button>
+							<div id="noise_sample1_trans" style="display: none;">
+								我就下播了然后就想看咱们家房子中午十一点啊来到咱们直播间有北戴河女孩分享给你们大家看看咱们家民宿啊然后让你们多方面的去了解看看民宿啊看看楼下停车位看完停车位呢带你们去海边去转圈明天有雨吗明天是晴天明天是晴
+							</div>
+						</td>
+					</tr>
+					<tr>
+						<td style="vertical-align : middle;text-align:center;">Sample2</td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 300px;"><source src="audios/StrongNoise_samples/strong_noise_sample2.wav" autoplay/></audio></td>
+						<td style="vertical-align : middle;text-align:center;">
+							<button id="button_noise_2" onclick="showText('noise_sample2_trans', 'button_noise_2')" style>Reveal Transcript</button>
+							<div id="noise_sample2_trans" style="display: none;">小小的花园里面挖啊挖呀挖<br>种小小的种子开小小的花<br>在大一点的花园里面挖啊挖呀挖<br>种大一点的种子开大一点的花<br>在大大的花园里面挖啊挖呀<br>挖大大的种子开大大的花
+							</div>
+						</td>
+					</tr>
+					<tr>
+						<td style="vertical-align : middle;text-align:center;">Sample3</td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 300px;"><source src="audios/StrongNoise_samples/strong_noise_sample3.wav" autoplay/></audio></td>
+						<td style="vertical-align : middle;text-align:center;">
+							<button id="button_noise_3" onclick="showText('noise_sample3_trans', 'button_noise_3')" style>Reveal Transcript</button>
+							<div id="noise_sample3_trans" style="display: none;">and i can't film my family cause that would be a little weird let us see
+							</div>
+						</td>
+					</tr>
+					<tr>
+						<td style="vertical-align : middle;text-align:center;">Sample4</td>
+						<td style="vertical-align : middle;text-align:center;"><audio controls="controls" style="width: 300px;"><source src="audios/StrongNoise_samples/strong_noise_sample4.wav" autoplay/></audio></td>
+						<td style="vertical-align : middle;text-align:center;">
+							<button id="button_noise_4" onclick="showText('noise_sample4_trans', 'button_noise_4')" style>Reveal Transcript</button>
+							<div id="noise_sample4_trans" style="display: none;">alright alright force first tortilla shell or maybe i can do this better so then you can see better
+							</div>
+						</td>
+					</tr>
+				</tbody>
+			</table>
+		</div>
+		<p class="annotation">
+			<sup>*</sup>Sample from "Conneau, Alexis, et al. "Fleurs: Few-shot learning evaluation of universal representations of speech." 2022 IEEE Spoken Language Technology Workshop (SLT). IEEE, 2023.".
+		</p>
+</div>
+
+</article>
+</main>
+</div>
+
+</body>
+</html>
